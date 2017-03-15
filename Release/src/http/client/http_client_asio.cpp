@@ -811,39 +811,47 @@ namespace web {
 						// By default, errorcodeValue don't need to converted
 						long errorcodeValue = ec.value();
 
-						// map timer cancellation to time_out
-						if (m_timer.has_timedout())
-						{
-							errorcodeValue = make_error_code(std::errc::timed_out).value();
-						}
-						else
-						{
-							// We need to correct inaccurate ASIO error code base on context information
-							switch (context)
-							{
-							case httpclient_errorcode_context::writeheader:
-								if (ec == boost::system::errc::broken_pipe)
-								{
-									errorcodeValue = make_error_code(std::errc::host_unreachable).value();
-								}
-								break;
-							case httpclient_errorcode_context::connect:
-								if (ec == boost::system::errc::connection_refused)
-								{
-									errorcodeValue = make_error_code(std::errc::host_unreachable).value();
-								}
-								break;
-							case httpclient_errorcode_context::readheader:
-								if (ec.default_error_condition().value() == boost::system::errc::no_such_file_or_directory) // bug in boost error_code mapping
-								{
-									errorcodeValue = make_error_code(std::errc::connection_aborted).value();
-								}
-								break;
-							default:
-								break;
-							}
-						}
-						request_context::report_error(errorcodeValue, message);
+                        //Minecraft Customization start
+                        // changed all of the (ec == boost::system::errc::###) to be (ec.value() == boost::system::errc::###)
+                        // in our new builds (after the project refactoring) the implicit conversion of the boost::system::errc::errc_t enum into an error_condition
+                        // seems to mess things up and then it blows up when the == operator does the compare
+                        // changed the compares to match some existing code (see the compare in handle_connect() just below this)
+                        // TODO: track down what changed to break this and fix that instead of these changes [bug 45688]
+                        
+                        // map timer cancellation to time_out
+                        if (ec.value() == boost::system::errc::operation_canceled && m_timer.has_timedout())
+                        {
+                            errorcodeValue = make_error_code(std::errc::timed_out).value();
+                        }
+                        else
+                        {
+                            // We need to correct inaccurate ASIO error code base on context information
+                            switch (context)
+                            {
+                                case httpclient_errorcode_context::writeheader:
+                                    if (ec.value() == boost::system::errc::broken_pipe)
+                                    {
+                                        errorcodeValue = make_error_code(std::errc::host_unreachable).value();
+                                    }
+                                    break;
+                                case httpclient_errorcode_context::connect:
+                                    if (ec.value() == boost::system::errc::connection_refused)
+                                    {
+                                        errorcodeValue = make_error_code(std::errc::host_unreachable).value();
+                                    }
+                                    break;
+                                case httpclient_errorcode_context::readheader:
+                                    if (ec.default_error_condition().value() == boost::system::errc::no_such_file_or_directory) // bug in boost error_code mapping
+                                    {
+                                        errorcodeValue = make_error_code(std::errc::connection_aborted).value();
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        
+                        //Minecraft Customization end
 					}
 
 					void handle_connect(const boost::system::error_code& ec, tcp::resolver::iterator endpoints)
