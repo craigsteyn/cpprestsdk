@@ -1063,7 +1063,7 @@ protected:
     void handle_async_shutdown(timer_ptr shutdown_timer, shutdown_handler
         callback, boost::system::error_code const & ec)
     {
-        if (ec == boost::asio::error::operation_aborted ||
+        if (ec.value() == boost::asio::error::operation_aborted ||
             shutdown_timer->expires_from_now().is_negative())
         {
             m_alog.write(log::alevel::devel,"async_shutdown cancelled");
@@ -1074,7 +1074,7 @@ protected:
 
         lib::error_code tec;
         if (ec) {
-            if (ec == boost::asio::error::not_connected) {
+            if (ec.value() == boost::asio::error::not_connected) {
                 // The socket was already closed when we tried to close it. This
                 // happens periodically (usually if a read or write fails
                 // earlier and if it is a real error will be caught at another
@@ -1084,7 +1084,7 @@ protected:
                 // socket/security policy a crack at it.
                 tec = socket_con_type::translate_ec(ec);
 
-                if (tec == transport::error::tls_short_read) {
+                if (tec.value() == transport::error::tls_short_read) {
                     // TLS short read at this point is somewhat expected if both
                     // sides try and end the connection at the same time or if
                     // SSLv2 is being used. In general there is nothing that can
@@ -1109,7 +1109,7 @@ private:
     template <typename error_type>
     void log_err(log::level l, const char * msg, const error_type & ec) {
         std::stringstream s;
-        s << msg << " error: " << ec << " (" << ec.message() << ")";
+        s << msg << " error: " << ec.value() << " (" << ec.message() << ")";
         m_elog.write(l,s.str());
     }
 
